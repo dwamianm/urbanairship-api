@@ -1,5 +1,5 @@
 {
-    "name": "urbanairship/urbanairship",
+    "name": "naski/urbanairship-api",
     "type": "library",
     "description": "Urban Airship PHP Library",
     "homepage": "http://docs.urbanairship.com/reference/libraries/php/",
@@ -9,6 +9,12 @@
             "name": "Urban Airship",
             "email": "support@urbanairship.com",
             "homepage": "http://support.urbanairship.com",
+            "role": "Developer"
+        },
+        {
+            "name": "Stéphane Wouters",
+            "email": "stephane@doelia.fr",
+            "homepage": "http://doelia.fr",
             "role": "Developer"
         }
     ],
