@@ -5,59 +5,60 @@ Copyright 2013 Urban Airship and Contributors
 
 namespace UrbanAirship\Push;
 
-use UrbanAirship\Airship;
 use UrbanAirship\UALog;
 
-class MultiPushRequest
+class ScheduledPushRequest
 {
-    const PUSH_URL = "/api/push/";
-
-    /**
-     * @var Airship
-     */
+    const SCHEDULE_URL = "/api/schedules/";
     private $airship;
-
-    private $pushRequest_list;
-
-    private static $LIMIT_PER_PUSH = 50;
+    private $schedule;
+    private $name = null;
+    private $push;
 
     function __construct($airship)
     {
         $this->airship = $airship;
-        $this->pushRequest_list = [];
     }
 
-    function addPushRequest(PushRequest $pushRequest)
+    function setSchedule($schedule)
     {
-        $this->pushRequest_list[] = $pushRequest;
+        $this->schedule = $schedule;
+        return $this;
     }
 
-    function getPayLoad()
+    function setName($name)
     {
-        return array_map(function($v) {
-            return $v->getPayLoad();
-        }, $this->pushRequest_list);
+        $this->name = $name;
+        return $this;
+    }
+
+    function setPush($push)
+    {
+        $this->push = $push;
+        return $this;
+    }
+
+    function getPayload()
+    {
+        $payload = array(
+            'schedule' => $this->schedule,
+            'push' => $this->push->getPayload()
+        );
+        if (!is_null($this->name)) {
+            $payload['name'] = $this->name;
+        }
+        return $payload;
     }
 
     function send()
     {
-        $nSent = 0;
-        $payload_cutted = array_chunk($this->getPayLoad(), self::$LIMIT_PER_PUSH);
-
-        foreach ($payload_cutted as $payload) {
-            $uri = $this->airship->buildUrl(self::PUSH_URL);
-
-            $response = $this->airship->request("POST",
-                json_encode($payload), $uri, "application/vnd.urbanairship+json", 3);
-
-            $logger = UALog::getLogger();
-            $payload = json_decode($response->raw_body, true);
-            $logger->info("Push sent successfully.", array("push_ids" => $payload['push_ids']));
-            $nSent += count($payload['push_ids']);
-        }
-
-        return $nSent;
-
+        $uri = $this->airship->buildUrl(self::SCHEDULE_URL);
+        $logger = UALog::getLogger();
+        $response = $this->airship->request("POST",
+            json_encode($this->getPayload()), $uri, "application/vnd.urbanairship+json", 3);
+        $payload = json_decode($response->raw_body, true);
+        $logger->info("Scheduled push sent successfully.", array("schedule_urls" => $payload['schedule_urls']));
+        return new PushResponse($response);
     }
 
 }
