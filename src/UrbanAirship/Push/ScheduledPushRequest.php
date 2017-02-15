@@ -5,60 +5,59 @@ Copyright 2013 Urban Airship and Contributors
 
 namespace UrbanAirship\Push;
 
+use UrbanAirship\Airship;
 use UrbanAirship\UALog;
 
-class ScheduledPushRequest
+class MultiPushRequest
 {
-    const SCHEDULE_URL = "/api/schedules/";
+    const PUSH_URL = "/api/push/";
+
+    /**
+     * @var Airship
+     */
     private $airship;
-    private $schedule;
-    private $name = null;
-    private $push;
+
+    private $pushRequest_list;
+
+    private static $LIMIT_PER_PUSH = 50;
 
     function __construct($airship)
     {
         $this->airship = $airship;
+        $this->pushRequest_list = [];
     }
 
-    function setSchedule($schedule)
+    function addPushRequest(PushRequest $pushRequest)
     {
-        $this->schedule = $schedule;
-        return $this;
+        $this->pushRequest_list[] = $pushRequest;
     }
 
-    function setName($name)
+    function getPayLoad()
     {
-        $this->name = $name;
-        return $this;
-    }
-
-    function setPush($push)
-    {
-        $this->push = $push;
-        return $this;
-    }
-
-    function getPayload()
-    {
-        $payload = array(
-            'schedule' => $this->schedule,
-            'push' => $this->push->getPayload()
-        );
-        if (!is_null($this->name)) {
-            $payload['name'] = $this->name;
-        }
-        return $payload;
+        return array_map(function($v) {
+            return $v->getPayLoad();
+        }, $this->pushRequest_list);
     }
 
     function send()
     {
-        $uri = $this->airship->buildUrl(self::SCHEDULE_URL);
-        $logger = UALog::getLogger();
-        $response = $this->airship->request("POST",
-            json_encode($this->getPayload()), $uri, "application/vnd.urbanairship+json", 3);
-        $payload = json_decode($response->raw_body, true);
-        $logger->info("Scheduled push sent successfully.", array("schedule_urls" => $payload['schedule_urls']));
-        return new PushResponse($response);
+        $nSent = 0;
+        $payload_cutted = array_chunk($this->getPayLoad(), self::$LIMIT_PER_PUSH);
+
+        foreach ($payload_cutted as $payload) {
+            $uri = $this->airship->buildUrl(self::PUSH_URL);
+
+            $response = $this->airship->request("POST",
+                json_encode($payload), $uri, "application/vnd.urbanairship+json", 3);
+
+            $logger = UALog::getLogger();
+            $payload = json_decode($response->raw_body, true);
+            $logger->info("Push sent successfully.", array("push_ids" => $payload['push_ids']));
+            $nSent += count($payload['push_ids']);
+        }
+
+        return $nSent;
+
     }
 
 }
